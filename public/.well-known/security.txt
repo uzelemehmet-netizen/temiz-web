@@ -1,0 +1,5 @@
+Contact: mailto:security@endonezyakasifi.com
+Encryption: https://endonezyakasifi.com/pgp-key.txt
+Acknowledgements: https://endonezyakasifi.com/security/acknowledgements
+Preferred-Languages: en, tr
+Canonical: https://endonezyakasifi.com/.well-known/security.txt

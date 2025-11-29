@@ -1,0 +1,7 @@
+# robots.txt for endonezyakasifi.com
+User-agent: *
+Allow: /
+Sitemap: https://endonezyakasifi.com/sitemap.xml
+# Block potentially sensitive paths (adjust as needed)
+Disallow: /admin/
+Disallow: /api/
