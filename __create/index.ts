@@ -34,10 +34,40 @@ for (const method of ['log', 'info', 'warn', 'error', 'debug'] as const) {
   };
 }
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-const adapter = NeonAdapter(pool);
+let pool: Pool | undefined;
+let adapter: any; // when DATABASE_URL is missing use a mock adapter so the app can boot
+
+if (process.env.DATABASE_URL) {
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+  });
+  adapter = NeonAdapter(pool);
+} else {
+  console.warn('No DATABASE_URL configured — using a mock auth adapter. DB-backed features will not work until you set DATABASE_URL.');
+
+  const dbMissingError = () => {
+    throw new Error('Database is not configured (DATABASE_URL missing)');
+  };
+
+  // minimal mock adapter: methods either return null or throw explicit errors so
+  // routes fail clearly rather than crashing at import time.
+  adapter = {
+    createVerificationToken: async () => dbMissingError(),
+    useVerificationToken: async () => dbMissingError(),
+    createUser: async () => dbMissingError(),
+    getUser: async () => null,
+    getUserByEmail: async () => null,
+    getUserByAccount: async () => null,
+    updateUser: async () => dbMissingError(),
+    linkAccount: async () => dbMissingError(),
+    createSession: async () => dbMissingError(),
+    getSessionAndUser: async () => null,
+    updateSession: async () => dbMissingError(),
+    deleteSession: async () => dbMissingError(),
+    unlinkAccount: async () => dbMissingError(),
+    deleteUser: async () => dbMissingError(),
+  };
+}
 
 const app = new Hono();
 

@@ -97,7 +97,9 @@ Ek Detaylar: ${additional_details || "Yok"}
             to: "uzelemehmet@gmail.com",
             subject: `Yeni Seyahat Talebi - ${full_name}`,
             text: emailBody,
-            template_params: { full_name, email, phone: phone || 'Belirtilmedi', travel_dates, number_of_people, package_preference, interests, budget_range, additional_details: additional_details || 'Yok', privacy_consent: !!body.privacy_consent }
+            template_params: { full_name, email, phone: phone || 'Belirtilmedi', travel_dates, number_of_people, package_preference, interests, budget_range, additional_details: additional_details || 'Yok', privacy_consent: !!body.privacy_consent },
+            // Allow sending travel inquiries with a dedicated template (if configured)
+            template_id: process.env.EMAILJS_TRAVEL_TEMPLATE_ID || undefined
           }),
         },
       );

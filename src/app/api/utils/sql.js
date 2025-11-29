@@ -17,12 +17,29 @@ logEnvStatus();
 let sql;
 
 if (process.env.NODE_ENV === "production") {
+  // Production: prefer a real DATABASE_URL but don't throw at import time.
+  // Throwing during module import can make serverless functions fail to initialize
+  // and will prevent a deployment from being usable even if only some routes
+  // require the DB. Instead, if DATABASE_URL is not set we'll provide a
+  // fail-fast stub that surfaces clear errors when used.
   if (!process.env.DATABASE_URL) {
-    throw new Error(
-      "No database connection string was provided to `neon()`. Set DATABASE_URL in production environment",
+    console.warn(
+      'No DATABASE_URL configured in production — DB-backed routes will return an error. Add DATABASE_URL to your production environment when ready.',
     );
+
+    const errorStub = {
+      query: async () => {
+        throw new Error('Database is not configured (DATABASE_URL missing)');
+      },
+      transaction: async () => {
+        throw new Error('Database is not configured (DATABASE_URL missing)');
+      },
+    };
+
+    sql = errorStub;
+  } else {
+    sql = neon(process.env.DATABASE_URL);
   }
-  sql = neon(process.env.DATABASE_URL);
 } else {
   if (process.env.DATABASE_URL) {
     sql = neon(process.env.DATABASE_URL);
