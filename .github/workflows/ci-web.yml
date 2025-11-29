@@ -1,0 +1,43 @@
+name: CI - web build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build web (clean repo)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run production build
+        env:
+          NODE_ENV: production
+          CI: true
+        run: |
+          npm run build
+
+      - name: List build output
+        run: |
+          if [ -d build ]; then ls -la build || true; elif [ -d dist ]; then ls -la dist || true; else echo 'No build output directory found'; fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: |
+            build
+            dist
