@@ -10,15 +10,73 @@ import updatedFetch from '../src/__create/fetch.js';
 const API_BASENAME = '/api';
 const api = new Hono();
 
-// Get current directory
-const __dirname = join(fileURLToPath(new URL('.', import.meta.url)), '../src/app/api');
+// Resolve candidate directories for API route files. We try these in order:
+// 1) build/server/src/app/api (server build copy)
+// 2) src/app/api next to this module
+// 3) src/app/api under the current working directory (and walking upwards)
+const fileDir = join(fileURLToPath(new URL('.', import.meta.url)), '..');
+let __dirname = join(fileDir, 'src/app/api');
+
+import { access } from 'node:fs/promises';
+
+async function resolveApiDir(): Promise<string | null> {
+  const candidates = [
+    join(fileDir, 'build/server/src/app/api'),
+    join(fileDir, 'src/app/api'),
+    join(process.cwd(), 'src/app/api'),
+  ];
+
+  // Walk up from CWD and add any src/app/api along the way
+  try {
+    let cur = process.cwd();
+    const { dirname } = await import('node:path');
+    while (true) {
+      const candidate = join(cur, 'src/app/api');
+      if (!candidates.includes(candidate)) candidates.push(candidate);
+      const parent = dirname(cur);
+      if (parent === cur) break;
+      cur = parent;
+    }
+  } catch (_e) {
+    // ignore
+  }
+
+  for (const candidate of candidates) {
+    try {
+      await access(candidate);
+      return candidate;
+    } catch (_err) {
+      // try next candidate
+    }
+  }
+
+  return null;
+}
+
+const resolved = await resolveApiDir();
+if (resolved) {
+  __dirname = resolved;
+} else {
+  console.warn('route-builder: could not find src/app/api under build/server or project src — continuing; route discovery may produce no routes.');
+}
+
 if (globalThis.fetch) {
   globalThis.fetch = updatedFetch;
 }
 
 // Recursively find all route.js files
 async function findRouteFiles(dir: string): Promise<string[]> {
-  const files = await readdir(dir);
+  // If the directory doesn't exist, return an empty list rather than throwing
+  let files: string[];
+  try {
+    files = await readdir(dir);
+  } catch (err: any) {
+    if (err && err.code === 'ENOENT') {
+      return [];
+    }
+    throw err;
+  }
+
   let routes: string[] = [];
 
   for (const file of files) {
@@ -67,6 +125,20 @@ function getHonoPath(routeFile: string): { name: string; pattern: string }[] {
 
 // Import and register all routes
 async function registerRoutes() {
+  // During production server builds we prefer to use server-side copies
+  // of route modules (build/server/...). If we only found the source
+  // `src/app/api` location, importing those modules at build-time can
+  // fail because of path aliases (e.g. '@/app'). In that case skip
+  // registering routes during build so the server bundle can be
+  // produced without attempting to import source-only modules.
+  if (
+    process.env.NODE_ENV === 'production' &&
+    __dirname.includes('/src/app/api') &&
+    !__dirname.includes('/build/server')
+  ) {
+    console.warn('route-builder: production build uses source api files; skipping route imports to avoid import-time resolution errors.');
+    return;
+  }
   const routeFiles = (
     await findRouteFiles(__dirname).catch((error) => {
       console.error('Error finding route files:', error);
