@@ -1,13 +1,13 @@
 {
-  builds: [
+  "builds": [
     {
-      src: package.json,
-      use: @vercel/static-build,
-      config: { distDir: build/client }
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "build/client" }
     }
   ],
-  routes: [
-    { src: /api/(.*), status: 404, dest: /api/ },
-    { src: /(.*), dest: /index.html }
+  "routes": [
+    { "src": "/api/(.*)", "status": 404, "dest": "/api/$1" },
+    { "src": "(.*)", "dest": "/index.html" }
   ]
 }
